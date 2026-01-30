@@ -1,0 +1,36 @@
+version: "3.9"
+services:
+  backend:
+    build: ./backend
+    container_name: hackathon4-backend
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql://neondb_owner:npg_LG7oZUwzO2Pk@ep-silent-morning-adwt0kau-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    container_name: hackathon4-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8001/api
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:15
+    container_name: hackathon4-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: hackathon4
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
