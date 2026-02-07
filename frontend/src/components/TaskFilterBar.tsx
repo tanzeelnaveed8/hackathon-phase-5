@@ -5,7 +5,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, SlidersHorizontal, ArrowUpDown, X } from 'lucide-react';
+import { Search, SlidersHorizontal, ArrowUpDown, X, Tag } from 'lucide-react';
 import { TaskFilters, TaskPriority } from '@/lib/types';
 
 interface TaskFilterBarProps {
@@ -15,6 +15,7 @@ interface TaskFilterBarProps {
 
 export default function TaskFilterBar({ filters, onFiltersChange }: TaskFilterBarProps) {
   const [showFilters, setShowFilters] = useState(false);
+  const [tagInput, setTagInput] = useState('');
 
   const handleSearchChange = (search: string) => {
     onFiltersChange({ ...filters, search: search || undefined });
@@ -42,7 +43,20 @@ export default function TaskFilterBar({ filters, onFiltersChange }: TaskFilterBa
     });
   };
 
+  const handleTagFilter = () => {
+    const trimmed = tagInput.trim();
+    if (trimmed) {
+      onFiltersChange({ ...filters, tag: trimmed });
+      setTagInput('');
+    }
+  };
+
+  const clearTagFilter = () => {
+    onFiltersChange({ ...filters, tag: undefined });
+  };
+
   const clearFilters = () => {
+    setTagInput('');
     onFiltersChange({});
   };
 
@@ -86,7 +100,7 @@ export default function TaskFilterBar({ filters, onFiltersChange }: TaskFilterBa
 
       {/* Filter options */}
       {showFilters && (
-        <div className="p-4 bg-background-elevated border border-border-default rounded-lg grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="p-4 bg-background-elevated border border-border-default rounded-lg grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Priority filter */}
           <div>
             <label className="block text-xs font-medium text-text-muted mb-1.5">Priority</label>
@@ -161,6 +175,40 @@ export default function TaskFilterBar({ filters, onFiltersChange }: TaskFilterBa
                 <ArrowUpDown size={14} />
               </button>
             </div>
+          </div>
+
+          {/* Tag filter */}
+          <div>
+            <label className="block text-xs font-medium text-text-muted mb-1.5">Filter by Tag</label>
+            {filters.tag ? (
+              <div className="flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-500/10 text-indigo-400 rounded-full text-xs font-medium">
+                  <Tag size={12} />
+                  #{filters.tag}
+                  <button onClick={clearTagFilter} className="hover:text-red-400 transition-colors ml-0.5">
+                    <X size={12} />
+                  </button>
+                </span>
+              </div>
+            ) : (
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleTagFilter()}
+                  placeholder="Tag name..."
+                  className="flex-1 px-2.5 py-1 rounded text-xs bg-background-primary text-text-secondary border border-border-default placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-border-focus"
+                />
+                <button
+                  onClick={handleTagFilter}
+                  disabled={!tagInput.trim()}
+                  className="px-2.5 py-1 rounded text-xs bg-background-primary text-text-secondary border border-border-default hover:border-border-focus transition-all disabled:opacity-40"
+                >
+                  <Tag size={14} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

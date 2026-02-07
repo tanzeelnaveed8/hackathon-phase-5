@@ -1,0 +1,171 @@
+name: Phase 5 CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  # ============================================
+  # Stage 1: Lint & Test
+  # ============================================
+  test-backend:
+    name: Test Backend
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: hackathon4_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/hackathon4_test
+          JWT_SECRET: test-secret
+        run: cd backend && python -m pytest -v
+
+  test-frontend:
+    name: Test Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Build
+        run: cd frontend && npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8001/api
+
+  # ============================================
+  # Stage 2: Build Docker Images
+  # ============================================
+  build-images:
+    name: Build Docker Images
+    needs: [test-backend, test-frontend]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - service: backend
+            context: ./backend
+            dockerfile: ./backend/Dockerfile
+          - service: frontend
+            context: ./frontend
+            dockerfile: ./frontend/Dockerfile
+          - service: notification
+            context: ./backend/services/notification
+            dockerfile: ./backend/services/notification/Dockerfile
+          - service: recurring
+            context: ./backend/services/recurring
+            dockerfile: ./backend/services/recurring/Dockerfile
+          - service: websocket
+            context: ./backend/services/websocket
+            dockerfile: ./backend/services/websocket/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:latest
+
+  # ============================================
+  # Stage 3: Deploy (on main branch only)
+  # ============================================
+  deploy:
+    name: Deploy to Kubernetes
+    needs: [build-images]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+
+      - name: Install Dapr CLI
+        run: |
+          wget -q https://raw.githubusercontent.com/dapr/cli/master/install/install.sh -O - | /bin/bash
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f infra/k8s/minikube/namespace.yaml
+          kubectl apply -f infra/k8s/minikube/configmap.yaml
+          kubectl apply -f infra/k8s/minikube/secrets.yaml
+          kubectl apply -f infra/k8s/minikube/postgres.yaml
+          kubectl apply -f infra/k8s/minikube/redpanda.yaml
+          kubectl apply -f infra/k8s/minikube/dapr-components.yaml
+          kubectl apply -f infra/k8s/minikube/backend.yaml
+          kubectl apply -f infra/k8s/minikube/frontend.yaml
+          kubectl apply -f infra/k8s/minikube/microservices.yaml
+
+      - name: Update image tags
+        run: |
+          kubectl set image deployment/backend backend=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }} -n todo-app
+          kubectl set image deployment/frontend frontend=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:${{ github.sha }} -n todo-app
+          kubectl set image deployment/notification-service notification-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-notification:${{ github.sha }} -n todo-app
+          kubectl set image deployment/recurring-service recurring-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-recurring:${{ github.sha }} -n todo-app
+          kubectl set image deployment/websocket-service websocket-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-websocket:${{ github.sha }} -n todo-app
+
+      - name: Verify deployment
+        run: |
+          kubectl rollout status deployment/backend -n todo-app --timeout=120s
+          kubectl rollout status deployment/frontend -n todo-app --timeout=120s
+          kubectl rollout status deployment/notification-service -n todo-app --timeout=120s
+          kubectl rollout status deployment/recurring-service -n todo-app --timeout=120s
+          kubectl rollout status deployment/websocket-service -n todo-app --timeout=120s
