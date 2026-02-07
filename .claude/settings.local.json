@@ -45,7 +45,9 @@
       "Bash(del:*)",
       "Bash(npx tsc:*)",
       "Bash(timeout:*)",
-      "Bash(if exist .nextdevlock del /F .nextdevlock)"
+      "Bash(if exist .nextdevlock del /F .nextdevlock)",
+      "Bash(git remote set-url:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

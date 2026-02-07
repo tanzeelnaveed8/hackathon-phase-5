@@ -3,7 +3,7 @@
  * Automatically attaches JWT tokens from httpOnly cookies.
  */
 
-import { Task, TaskCreate, TaskUpdate } from './types';
+import { Task, TaskCreate, TaskUpdate, ActivityLog, TaskFilters } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
 
@@ -55,14 +55,30 @@ export async function apiClient<T>(
 }
 
 /**
+ * Build query string from filters object.
+ */
+function buildQueryString(filters?: TaskFilters): string {
+  if (!filters) return '';
+  const params = new URLSearchParams();
+  if (filters.search) params.set('search', filters.search);
+  if (filters.priority) params.set('priority', filters.priority);
+  if (filters.is_completed !== undefined) params.set('is_completed', String(filters.is_completed));
+  if (filters.tag) params.set('tag', filters.tag);
+  if (filters.sort_by) params.set('sort_by', filters.sort_by);
+  if (filters.sort_order) params.set('sort_order', filters.sort_order);
+  const qs = params.toString();
+  return qs ? `?${qs}` : '';
+}
+
+/**
  * Task API methods.
  */
 export const taskApi = {
   /**
-   * List all tasks for authenticated user.
+   * List all tasks for authenticated user with optional filters.
    */
-  list: (userId: string) =>
-    apiClient<Task[]>(`/api/${userId}/tasks`, { method: 'GET' }),
+  list: (userId: string, filters?: TaskFilters) =>
+    apiClient<Task[]>(`/api/${userId}/tasks${buildQueryString(filters)}`, { method: 'GET' }),
 
   /**
    * Create a new task.
@@ -102,4 +118,10 @@ export const taskApi = {
       method: 'PATCH',
       body: { is_completed: isCompleted },
     }),
+
+  /**
+   * Get activity log for user.
+   */
+  getActivityLog: (userId: string, limit: number = 50) =>
+    apiClient<ActivityLog[]>(`/api/${userId}/activity?limit=${limit}`, { method: 'GET' }),
 };

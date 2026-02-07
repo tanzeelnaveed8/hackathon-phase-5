@@ -46,6 +46,10 @@ class Settings:
         "gpt-4o-mini"
     )
 
+    # Phase V: Event-Driven Architecture
+    PHASE5_ENABLED: bool = os.getenv("PHASE5_ENABLED", "false").lower() == "true"
+    DAPR_HTTP_PORT: int = int(os.getenv("DAPR_HTTP_PORT", "3500"))
+
     @property
     def allowed_origins_list(self) -> list[str]:
         """Parse ALLOWED_ORIGINS into a list."""

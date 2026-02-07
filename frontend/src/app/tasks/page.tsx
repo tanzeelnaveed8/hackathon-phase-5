@@ -1,22 +1,26 @@
 /**
  * Task list page - displays all tasks for authenticated user.
+ * Phase 5: Adds search, filter, sort, activity log, and real-time updates.
  */
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import TaskList from '@/components/TaskList';
 import TaskForm from '@/components/TaskForm';
+import TaskFilterBar from '@/components/TaskFilterBar';
+import ActivityLogPanel from '@/components/ActivityLogPanel';
 import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal';
 import BulkActionsToolbar from '@/components/BulkActionsToolbar';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Button from '@/components/ui/Button';
-import { Task, TaskCreate, TaskUpdate } from '@/lib/types';
+import { Task, TaskCreate, TaskUpdate, TaskFilters } from '@/lib/types';
 import { taskApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 export default function TasksPage() {
   const { user, loading: authLoading } = useAuth();
@@ -30,6 +34,26 @@ export default function TasksPage() {
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<number>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
+  // Phase 5: Filters and activity log
+  const [filters, setFilters] = useState<TaskFilters>({});
+  const [showActivityLog, setShowActivityLog] = useState(false);
+
+  // Phase 5: Real-time WebSocket updates
+  const handleWsMessage = useCallback((message: { type: string; task_id?: number }) => {
+    if (!user) return;
+    // Refresh tasks when a real-time update comes in
+    if (['task_created', 'task_updated', 'task_deleted', 'task_completed', 'task_uncompleted'].includes(message.type)) {
+      taskApi.list(user.id, filters).then(setTasks).catch(() => {});
+      toast.info('Tasks updated in real-time');
+    }
+  }, [user, filters]);
+
+  useWebSocket({
+    userId: user?.id,
+    onMessage: handleWsMessage,
+    enabled: !!user,
+  });
+
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
@@ -39,13 +63,13 @@ export default function TasksPage() {
 
   useEffect(() => {
     async function fetchTasks() {
-      if (!user) return; // Wait for authentication
+      if (!user) return;
 
       try {
         setLoading(true);
         setError(null);
 
-        const fetchedTasks = await taskApi.list(user.id);
+        const fetchedTasks = await taskApi.list(user.id, filters);
         setTasks(fetchedTasks);
       } catch (err) {
         console.error('Failed to fetch tasks:', err);
@@ -60,7 +84,7 @@ export default function TasksPage() {
     }
 
     fetchTasks();
-  }, [user]);
+  }, [user, filters]);
 
   const handleTaskCreated = async (taskData: TaskCreate) => {
     if (!user) return;
@@ -70,14 +94,8 @@ export default function TasksPage() {
 
     try {
       const newTask = await taskApi.create(user.id, taskData);
-
-      // Add new task to the list
       setTasks([newTask, ...tasks]);
-
-      // Hide form after successful creation
       setShowForm(false);
-
-      // Show success toast
       toast.success('Task created successfully!', {
         description: taskData.title,
       });
@@ -98,11 +116,7 @@ export default function TasksPage() {
 
     try {
       const updatedTask = await taskApi.update(user.id, taskId, data);
-
-      // Update task in the list
       setTasks(tasks.map(task => task.id === taskId ? updatedTask : task));
-
-      // Show success toast
       toast.success('Task updated successfully!');
     } catch (err) {
       console.error('Failed to update task:', err);
@@ -118,11 +132,7 @@ export default function TasksPage() {
 
     try {
       await taskApi.delete(user.id, taskId);
-
-      // Remove task from the list
       setTasks(tasks.filter(task => task.id !== taskId));
-
-      // Show success toast
       toast.success('Task deleted successfully!');
     } catch (err) {
       console.error('Failed to delete task:', err);
@@ -138,11 +148,7 @@ export default function TasksPage() {
 
     try {
       const updatedTask = await taskApi.toggleComplete(user.id, taskId, isCompleted);
-
-      // Update task in the list
       setTasks(tasks.map(task => task.id === taskId ? updatedTask : task));
-
-      // Show success toast
       toast.success(isCompleted ? 'Task completed!' : 'Task marked as incomplete');
     } catch (err) {
       console.error('Failed to toggle completion:', err);
@@ -189,8 +195,6 @@ export default function TasksPage() {
       );
       setTasks(tasks.filter(task => !selectedTaskIds.has(task.id)));
       setSelectedTaskIds(new Set());
-
-      // Show success toast
       toast.success(`${count} ${count === 1 ? 'task' : 'tasks'} deleted successfully!`);
     } catch (error) {
       console.error('Failed to delete tasks:', error);
@@ -221,7 +225,6 @@ export default function TasksPage() {
       }));
       setSelectedTaskIds(new Set());
 
-      // Show success toast
       toast.success(
         isCompleted
           ? `${count} ${count === 1 ? 'task' : 'tasks'} marked as complete!`
@@ -253,6 +256,7 @@ export default function TasksPage() {
       callback: () => {
         setShowForm(false);
         setShowShortcutsModal(false);
+        setShowActivityLog(false);
       },
       description: 'Close/Cancel',
     },
@@ -264,7 +268,6 @@ export default function TasksPage() {
     },
   ], !!user);
 
-  // Show loading while checking authentication
   if (authLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -277,7 +280,6 @@ export default function TasksPage() {
     );
   }
 
-  // Don't render if not authenticated (will redirect)
   if (!user) {
     return null;
   }
@@ -322,10 +324,17 @@ export default function TasksPage() {
             </h2>
             <p className="text-sm text-text-secondary mt-2">
               {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
-              {selectedTaskIds.size > 0 && ` • ${selectedTaskIds.size} selected`}
+              {selectedTaskIds.size > 0 && ` \u2022 ${selectedTaskIds.size} selected`}
             </p>
           </div>
           <div className="flex gap-3">
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => setShowActivityLog(!showActivityLog)}
+            >
+              Activity
+            </Button>
             {tasks.length > 0 && (
               <Button
                 variant="secondary"
@@ -350,6 +359,9 @@ export default function TasksPage() {
             <p className="text-sm text-red-500">{error}</p>
           </div>
         )}
+
+        {/* Phase 5: Search, filter, sort bar */}
+        <TaskFilterBar filters={filters} onFiltersChange={setFilters} />
 
         {showForm && (
           <TaskForm
@@ -382,6 +394,13 @@ export default function TasksPage() {
         <KeyboardShortcutsModal
           isOpen={showShortcutsModal}
           onClose={() => setShowShortcutsModal(false)}
+        />
+
+        {/* Phase 5: Activity Log Panel */}
+        <ActivityLogPanel
+          userId={user.id}
+          isOpen={showActivityLog}
+          onClose={() => setShowActivityLog(false)}
         />
 
         {/* Help button */}

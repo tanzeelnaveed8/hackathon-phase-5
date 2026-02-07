@@ -1,0 +1,44 @@
+# Redpanda Configuration for Phase 5
+# Redpanda is a Kafka-compatible streaming platform that requires no JVM or ZooKeeper.
+
+redpanda:
+  developer_mode: true
+  data_directory: /var/lib/redpanda/data
+
+  kafka_api:
+    - address: 0.0.0.0
+      port: 9092
+      name: internal
+    - address: 0.0.0.0
+      port: 19092
+      name: external
+
+  advertised_kafka_api:
+    - address: redpanda
+      port: 9092
+      name: internal
+    - address: localhost
+      port: 19092
+      name: external
+
+  pandaproxy_api:
+    - address: 0.0.0.0
+      port: 8082
+      name: internal
+    - address: 0.0.0.0
+      port: 18082
+      name: external
+
+  schema_registry_api:
+    - address: 0.0.0.0
+      port: 8081
+      name: internal
+    - address: 0.0.0.0
+      port: 18081
+      name: external
+
+# Topics to be auto-created
+# These are created automatically by Dapr pub/sub on first publish:
+#   - task-events: Task CRUD lifecycle events
+#   - reminders: Due date reminder events
+#   - task-updates: Real-time sync events

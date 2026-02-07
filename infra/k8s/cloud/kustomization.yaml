@@ -1,0 +1,21 @@
+# Kustomize overlay for cloud deployment (DOKS/GKE/AKS)
+# Usage: kubectl apply -k infra/k8s/cloud/
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: todo-app
+
+resources:
+  - ../minikube/namespace.yaml
+  - ../minikube/configmap.yaml
+  - ../minikube/secrets.yaml
+  - ../minikube/postgres.yaml
+  - ../minikube/redpanda.yaml
+  - ../minikube/backend.yaml
+  - ../minikube/frontend.yaml
+  - ../minikube/microservices.yaml
+  - ../minikube/dapr-components.yaml
+  - ingress.yaml
+
+patchesStrategicMerge:
+  - cloud-patches.yaml

@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: todo-app
+data:
+  PHASE5_ENABLED: "true"
+  DAPR_HTTP_PORT: "3500"
+  ALLOWED_ORIGINS: "http://localhost:3000"
+  DEBUG: "false"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redpanda-config
+  namespace: todo-app
+data:
+  KAFKA_BROKERS: "redpanda.todo-app.svc.cluster.local:9092"

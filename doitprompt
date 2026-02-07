@@ -1,0 +1,134 @@
+You are working on an existing repository called "hackathon-phase-4".
+DO NOT modify or break any Phase-4 functionality.
+All Phase-4 code must remain backward compatible and runnable.
+
+Your task is to ADD Phase-5 (Advanced Cloud & Event-Driven Architecture)
+on top of the existing system.
+
+========================
+PHASE 5 OBJECTIVE
+========================
+Transform the existing Todo Chatbot into an event-driven,
+cloud-ready microservices system using Kafka (Redpanda) and Dapr,
+deployable locally on Minikube and later on Cloud Kubernetes.
+
+========================
+RULES (CRITICAL)
+========================
+1. Do NOT delete or refactor existing Phase-4 features unless required.
+2. All new Phase-5 code must be ADDITIVE.
+3. Phase-5 infrastructure must be isolated (infra/, dapr/, services/).
+4. Phase-4 docker-compose must continue to work.
+5. Phase-5 features must be optional and toggleable.
+
+========================
+PHASE-5 FEATURES TO ADD
+========================
+
+A) ADVANCED TODO FEATURES
+- Recurring Tasks (daily / weekly / monthly)
+- Due dates with reminders
+- Task priorities
+- Tags
+- Search, filter, sort
+- Activity / audit log
+
+B) EVENT-DRIVEN ARCHITECTURE
+- Introduce Kafka-compatible messaging using Redpanda
+- Topics:
+  - task-events (task CRUD, completion)
+  - reminders (due date reminders)
+  - task-updates (real-time sync)
+
+C) MICROSERVICES (NEW)
+Add the following services under backend/services/:
+1. Notification Service
+   - Consumes "reminders" topic
+   - Sends notifications (console/log for now)
+
+2. Recurring Task Service
+   - Consumes "task-events"
+   - Auto-creates next task instance when a recurring task is completed
+
+3. WebSocket Service
+   - Consumes "task-updates"
+   - Broadcasts real-time updates to connected clients
+
+D) DAPR INTEGRATION (MANDATORY)
+Use Dapr to abstract infrastructure.
+
+Implement Dapr building blocks:
+- Pub/Sub (Kafka abstraction)
+- State Store (PostgreSQL / Neon)
+- Service Invocation
+- Cron Bindings (scheduled reminders)
+- Secrets Management
+
+All services must communicate with Kafka ONLY via Dapr,
+NOT via direct Kafka clients.
+
+========================
+DIRECTORY STRUCTURE TO CREATE
+========================
+
+backend/
+ ├── services/
+ │    ├── notification/
+ │    ├── recurring/
+ │    └── websocket/
+ │
+ ├── dapr/
+ │    └── components/
+ │         ├── kafka-pubsub.yaml
+ │         ├── statestore.yaml
+ │         ├── reminder-cron.yaml
+ │         └── secrets.yaml
+
+infra/
+ ├── kafka/
+ │    └── redpanda/
+ ├── k8s/
+ │    ├── minikube/
+ │    └── cloud/
+ └── ci-cd/
+      └── github-actions.yml
+
+specs/
+ └── phase-5/
+      ├── constitution.md
+      ├── specify.md
+      └── plan.md
+
+========================
+LOCAL DEVELOPMENT
+========================
+- Extend docker-compose.yml to ADD Redpanda (Kafka-compatible)
+- Keep existing services unchanged
+- Provide a separate docker-compose.phase5.yml if needed
+
+========================
+KUBERNETES
+========================
+- Provide Kubernetes manifests for Minikube
+- Enable Dapr sidecars via annotations
+- Do NOT hardcode secrets
+- Use ConfigMaps and Dapr Secret Store
+
+========================
+DELIVERABLES
+========================
+1. Phase-5 code added cleanly
+2. Dapr components YAML
+3. Redpanda setup (local)
+4. Minikube deployment manifests
+5. Cloud-ready structure (DOKS/GKE/AKS)
+6. GitHub Actions CI/CD pipeline
+7. Clear README update (Phase-5 section only)
+
+========================
+IMPORTANT
+========================
+- No placeholder files
+- Code must be runnable
+- Use FastAPI for backend services
+- Follow spec-driven development

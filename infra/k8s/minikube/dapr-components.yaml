@@ -1,0 +1,55 @@
+# Dapr Pub/Sub Component (Kafka via Redpanda)
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: kafka-pubsub
+  namespace: todo-app
+spec:
+  type: pubsub.kafka
+  version: v1
+  metadata:
+    - name: brokers
+      value: "redpanda.todo-app.svc.cluster.local:9092"
+    - name: consumerGroup
+      value: "todo-app-group"
+    - name: authType
+      value: "none"
+scopes:
+  - backend
+  - notification-service
+  - recurring-service
+  - websocket-service
+---
+# Dapr State Store Component (PostgreSQL)
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: statestore
+  namespace: todo-app
+spec:
+  type: state.postgresql
+  version: v1
+  metadata:
+    - name: connectionString
+      value: "host=postgres.todo-app.svc.cluster.local user=postgres password=password dbname=hackathon4 sslmode=disable"
+scopes:
+  - backend
+  - notification-service
+  - recurring-service
+---
+# Dapr Cron Binding for Reminder Checks
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: reminder-cron
+  namespace: todo-app
+spec:
+  type: bindings.cron
+  version: v1
+  metadata:
+    - name: schedule
+      value: "*/5 * * * *"
+    - name: direction
+      value: "input"
+scopes:
+  - notification-service

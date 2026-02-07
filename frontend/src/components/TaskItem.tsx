@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Edit2, Trash2, GripVertical, Calendar } from 'lucide-react';
+import { Edit2, Trash2, GripVertical, Calendar, Flag, Repeat, Tag } from 'lucide-react';
 import * as Checkbox from '@radix-ui/react-checkbox';
 import { Check } from 'lucide-react';
 import { Task, TaskUpdate } from '@/lib/types';
@@ -195,9 +195,53 @@ export default function TaskItem({ task, onUpdate, onDelete, onToggleComplete, i
                     {task.description}
                   </p>
                 )}
-                <div className="flex items-center gap-2 mt-2 text-xs text-text-muted">
-                  <Calendar size={12} />
-                  <span>{new Date(task.created_at).toLocaleDateString()}</span>
+                {/* Phase 5: Priority, due date, tags, recurrence badges */}
+                <div className="flex flex-wrap items-center gap-2 mt-2">
+                  {/* Priority badge */}
+                  {task.priority && task.priority !== 'medium' && (
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+                      task.priority === 'urgent' ? 'bg-red-500/15 text-red-400' :
+                      task.priority === 'high' ? 'bg-orange-500/15 text-orange-400' :
+                      'bg-gray-500/15 text-gray-400'
+                    }`}>
+                      <Flag size={10} />
+                      {task.priority}
+                    </span>
+                  )}
+
+                  {/* Due date */}
+                  {task.due_date && (
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+                      new Date(task.due_date) < new Date() && !task.is_completed
+                        ? 'bg-red-500/15 text-red-400'
+                        : 'bg-blue-500/15 text-blue-400'
+                    }`}>
+                      <Calendar size={10} />
+                      {new Date(task.due_date).toLocaleDateString()}
+                    </span>
+                  )}
+
+                  {/* Recurrence */}
+                  {task.recurrence_pattern && task.recurrence_pattern !== 'none' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-purple-500/15 text-purple-400">
+                      <Repeat size={10} />
+                      {task.recurrence_pattern}
+                    </span>
+                  )}
+
+                  {/* Tags */}
+                  {task.tags && task.tags.map((tag) => (
+                    <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-indigo-500/10 text-indigo-400">
+                      <Tag size={10} />
+                      {tag}
+                    </span>
+                  ))}
+
+                  {/* Created date (always shown) */}
+                  <span className="inline-flex items-center gap-1 text-xs text-text-muted">
+                    <Calendar size={10} />
+                    {new Date(task.created_at).toLocaleDateString()}
+                  </span>
                 </div>
               </div>
 

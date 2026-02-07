@@ -1,0 +1,48 @@
+# Cloud-specific patches for production deployment
+# Overrides for higher resource limits and replica counts
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: todo-app
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+        - name: backend
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: todo-app
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+        - name: frontend
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: todo-app
+spec:
+  type: LoadBalancer
